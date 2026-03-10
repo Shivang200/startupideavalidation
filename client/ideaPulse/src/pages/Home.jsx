@@ -4,6 +4,30 @@ import { useState, useEffect } from "react";
 function Home() {
 
   const [ideas, setIdeas] = useState([]);
+  const [commentText, setCommentText] = useState({});
+
+
+  const handleComment = async (id, text) => {
+  try {
+
+    const token = localStorage.getItem("token");
+
+    await axios.post(
+      `http://localhost:5000/api/ideas/comment/${id}`,
+      { text },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    fetchIdeas(); // refresh ideas
+
+  } catch (error) {
+    console.log(error);
+  }
+};
 
   const fetchIdeas = async () => {
     try {
@@ -81,6 +105,29 @@ function Home() {
                 </button>
 
               </div>
+              <div className="mt-3 flex gap-2">
+
+  <input
+    type="text"
+    placeholder="Write a comment..."
+    className="flex-1 bg-black border border-zinc-700 p-2 rounded outline-none"
+    value={commentText[idea.id] || ""}
+    onChange={(e) =>
+      setCommentText({
+        ...commentText,
+        [idea.id]: e.target.value
+      })
+    }
+  />
+
+  <button
+    onClick={() => handleComment(idea.id, commentText[idea.id])}
+    className="bg-zinc-800 px-3 rounded hover:bg-zinc-700"
+  >
+    Post
+  </button>
+
+</div>
 
             </div>
           ))}
