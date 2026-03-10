@@ -127,4 +127,39 @@ router.get("/list", async (req, res) => {
   }
 });
 
+// GET single idea by ID with all comments
+router.get("/:id", async (req, res) => {
+  try {
+    const idea = await Idea.findById(req.params.id)
+      .populate("author", "username")
+      .populate("comments.user", "username");
+
+    if (!idea) {
+      return res.status(404).json({ message: "Idea not found" });
+    }
+
+    const result = {
+      id: idea._id,
+      title: idea.title,
+      description: idea.description,
+      votes: idea.votes,
+      author: idea.author ? idea.author.username : "Anonymous",
+      authorId: idea.author ? idea.author._id : null,
+      createdAt: idea.createdAt,
+      comments: idea.comments.map((c) => ({
+        id: c._id,
+        text: c.text,
+        user: c.user ? c.user.username : "Anonymous",
+        userId: c.user ? c.user._id : null,
+        createdAt: c.createdAt
+      }))
+    };
+
+    res.json(result);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
