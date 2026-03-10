@@ -10,12 +10,12 @@ const User = require("../models/users"); // Make sure file is "user.js" or adjus
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters")
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email"),
-  password: z.string().min(6, "Password must be at least 6 characters")
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 // REGISTER
@@ -23,16 +23,25 @@ router.post("/register", async (req, res) => {
   try {
     // Validate request
     const result = registerSchema.safeParse(req.body);
+
     if (!result.success) {
-      return res.status(400).json({ message: result.error.errors[0].message });
+      return res.status(400).json({
+        message: result.error.issues[0].message,
+      });
     }
 
     const { username, email, password } = result.data;
 
     // Check if user exists
-    const existingUser = await User.findOne({ email });
+     // check if user exists
+    const existingUser = await User.findOne({
+      $or: [{ username }, { email }]
+    });
+
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({
+        message: "Username or email already exists"
+      });
     }
 
     // Hash password
@@ -48,7 +57,8 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
-    res.status(500).json(error);
+    console.error("REGISTER ERROR:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -74,12 +84,10 @@ router.post("/login", async (req, res) => {
     }
 
     // Generate JWT
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-     console.log("Generated token:", token);// For debugging 
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+    console.log("Generated token:", token); // For debugging
 
     res.json({
       message: "Login successful",
@@ -87,8 +95,8 @@ router.post("/login", async (req, res) => {
       user: {
         id: user._id,
         username: user.username,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     res.status(500).json(error);
