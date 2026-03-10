@@ -5,6 +5,12 @@ const IdeaSchema = new mongoose.Schema({
   description: { type: String, required: true },
   author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   votes: { type: Number, default: 0 },
+    voters: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }
+  ],
   comments: [
     {
       user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

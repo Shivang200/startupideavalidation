@@ -10,8 +10,9 @@ router.post("/create", verifyToken, async (req, res) => {
 
     const newIdea = new Idea({
       title,
-      description
-    }); 
+      description,
+      author: req.user.id,
+    });
 
     await newIdea.save();
 
@@ -24,15 +25,50 @@ router.post("/create", verifyToken, async (req, res) => {
 // POST /vote/:id
 router.post("/vote/:id", verifyToken, async (req, res) => {
   try {
+
     const idea = await Idea.findById(req.params.id);
-    if (!idea) return res.status(404).json({ message: "Idea not found" });
 
-    idea.votes += 1; // increment votes
-    await idea.save();
+    if (!idea) {
+      return res.status(404).json({ message: "Idea not found" });
+    }
 
-    res.json({ message: "Vote counted", votes: idea.votes }); // only number
+    const userId = req.user.id;
+
+    const alreadyVoted = idea.voters.includes(userId);
+
+    if (alreadyVoted) {
+
+      // UNVOTE
+      idea.voters = idea.voters.filter(
+        (voter) => voter.toString() !== userId
+      );
+
+      idea.votes -= 1;
+
+      await idea.save();
+
+      return res.json({
+        message: "Vote removed",
+        votes: idea.votes
+      });
+
+    } else {
+
+      // ADD VOTE
+      idea.voters.push(userId);
+      idea.votes += 1;
+
+      await idea.save();
+
+      return res.json({
+        message: "Vote added",
+        votes: idea.votes
+      });
+    }
+
   } catch (err) {
-    res.status(500).json(err);
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 router.post("/comment/:id", verifyToken, async (req, res) => {
@@ -41,13 +77,14 @@ router.post("/comment/:id", verifyToken, async (req, res) => {
     if (!idea) return res.status(404).json({ message: "Idea not found" });
 
     const { text } = req.body;
-    if (!text) return res.status(400).json({ message: "Comment cannot be empty" });
+    if (!text)
+      return res.status(400).json({ message: "Comment cannot be empty" });
 
     // comments is an array inside your Idea model:
     // Initially, it’s empty [] for a new idea.
     idea.comments.push({
       user: req.user.id,
-      text
+      text,
     });
 
     await idea.save();
@@ -62,28 +99,31 @@ router.post("/comment/:id", verifyToken, async (req, res) => {
 router.get("/list", async (req, res) => {
   try {
     let sortOption = {};
+
     if (req.query.sort === "votes_desc") {
-      sortOption = { votes: -1 }; // most votes first
+      sortOption = { votes: -1 };
     } else {
-      sortOption = { createdAt: -1 }; // latest first by default
+      sortOption = { createdAt: -1 };
     }
 
     const ideas = await Idea.find()
       .populate("author", "username")
       .sort(sortOption);
 
-    const result = ideas.map(idea => ({
+    const result = ideas.map((idea) => ({
       id: idea._id,
       title: idea.title,
       description: idea.description,
       votes: idea.votes,
       commentsCount: idea.comments.length,
-      author: idea.author.username
+      author: idea.author ? idea.author.username : "Anonymous"
     }));
 
     res.json(result);
+
   } catch (err) {
-    res.status(500).json(err);
+    console.log(err);   // IMPORTANT: see the real error in terminal
+    res.status(500).json({ message: "Server error" });
   }
 });
 
